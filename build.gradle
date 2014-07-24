@@ -1,0 +1,204 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'org.gradle.api.plugins:gradle-tomcat-plugin:1.2.4'
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'war'
+apply plugin: 'eclipse-wtp'
+apply plugin: 'tomcat'
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    javaVersion = 1.7
+    javaEncoding = 'UTF-8'
+    versions = [
+        springframework: '4.0.5.RELEASE',
+        springframework_security: '3.2.4.RELEASE',
+        springframework_data_jpa: '1.6.1.RELEASE',
+        hibernate: '4.3.5.Final',
+        aspectj: '1.6.10',
+        slf4j: '1.7.7',
+        querydsl: '3.4.1',
+//        tomcat: '8.0.9'
+        tomcat: '7.0.54'
+    ]
+}
+buildDir = 'build'
+sourceCompatibility = javaVersion
+targetCompatibility = javaVersion
+
+version = '1.0'
+
+
+// java compile encoding
+[compileJava, compileTestJava]*.options*.encoding = javaEncoding
+
+sourceSets {
+    querydsl {
+        java {
+            srcDirs = ['src/main/querydsl']
+        }
+    }
+}
+
+configurations {
+    querydslapt
+}
+
+dependencies {
+    compile 'org.springframework:spring-context:'+versions.springframework,
+        'org.springframework:spring-webmvc:'+versions.springframework,
+        // spring security
+        'org.springframework.security:spring-security-web:'+versions.springframework_security,
+        'org.springframework.security:spring-security-config:'+versions.springframework_security,
+        // spring jpa
+        'org.springframework.data:spring-data-jpa:'+versions.springframework_data_jpa,
+        // hibernate
+        'org.hibernate:hibernate-envers:'+versions.hibernate,
+        'org.hibernate:hibernate-validator:5.1.1.Final',
+        // mysql connector
+        'mysql:mysql-connector-java:5.1.31',
+        // data source
+        'com.jolbox:bonecp:0.8.0.RELEASE',
+        // model mapper
+        'org.modelmapper:modelmapper:0.7.2',
+        // redis
+        'org.springframework.data:spring-data-redis:1.3.1.RELEASE',
+        'redis.clients:jedis:2.5.1',
+        // aspectJ
+        'org.aspectj:aspectjrt:'+versions.aspectj,
+        // logging
+        'org.slf4j:slf4j-api:'+versions.slf4j,
+        'ch.qos.logback:logback-classic:1.1.2',
+        // @inject
+        'javax.inject:javax.inject:1',
+        // lombok
+        'org.projectlombok:lombok:1.14.2',
+        // jstl
+        'javax.servlet:jstl:1.2',
+        // check mobile
+        'org.springframework.mobile:spring-mobile-device:1.1.2.RELEASE',
+        // json
+        'com.fasterxml.jackson.core:jackson-databind:2.4.1.1',
+        // xml
+        'org.springframework:spring-oxm:'+versions.springframework,
+        'com.thoughtworks.xstream:xstream:1.4.7',
+        // queryDsl
+        'com.mysema.querydsl:querydsl-core:'+versions.querydsl,
+        'com.mysema.querydsl:querydsl-jpa:'+versions.querydsl,
+        // google guava
+        'com.google.guava:guava:17.0',
+        // etc
+        'org.springframework.boot:spring-boot-starter-test:1.1.4.RELEASE'
+        
+    querydslapt 'com.mysema.querydsl:querydsl-apt:'+versions.querydsl
+        
+    providedCompile 'javax.servlet:javax.servlet-api:3.1.0',
+        'javax.servlet.jsp:jsp-api:2.1'
+        
+    runtime 'org.slf4j:jcl-over-slf4j:'+versions.slf4j,
+        'org.slf4j:slf4j-log4j12:'+versions.slf4j
+        
+    testCompile 'junit:junit:4.11'
+    
+    
+    tomcat "org.apache.tomcat.embed:tomcat-embed-core:"+versions.tomcat,
+           "org.apache.tomcat.embed:tomcat-embed-logging-juli:"+versions.tomcat
+    tomcat("org.apache.tomcat.embed:tomcat-embed-jasper:"+versions.tomcat) {
+        exclude group: 'org.eclipse.jdt.core.compiler', module: 'ecj'
+    }
+    
+    [configurations.runtime, configurations.default]*.exclude(module: 'commons-logging')
+}
+
+test {
+    jvmArgs = ['-ea', '-Xmx256m']
+    logging.captureStandardOutput(LogLevel.INFO)
+    //testReport = false
+    //reports.html.enabled = true // getReports().getHtml().setEnabled(true)
+}
+
+task initProject(description: 'Initialize project') << {
+    def createDir = {
+        println "create source directory: $it"
+        it.mkdirs()
+    }
+
+    sourceSets.main.java.srcDirs.each createDir
+    sourceSets.main.resources.srcDirs.each createDir
+    sourceSets.test.java.srcDirs.each createDir
+    sourceSets.test.resources.srcDirs.each createDir
+    sourceSets.querydsl.java.srcDirs.each createDir
+
+    createDir webAppDir
+    createDir new File(webAppDir, '/WEB-INF')
+    createDir new File(webAppDir, '/resources')
+}
+
+task generateQueryDSL(type: JavaCompile, group: 'build', description: 'Generates the QueryDSL query types') {
+    source = sourceSets.main.java
+    classpath = configurations.compile + configurations.querydslapt
+    options.compilerArgs = [
+            "-proc:only",
+            "-processor", "com.mysema.query.apt.jpa.JPAAnnotationProcessor"
+    ]
+    destinationDir = sourceSets.querydsl.java.srcDirs.iterator().next()
+}
+
+compileJava {
+    dependsOn generateQueryDSL
+    source generateQueryDSL.destinationDir
+}
+
+/*
+compileGeneratedJava {
+    dependsOn generateQueryDSL
+    options.warnings = false
+    classpath += sourceSets.main.runtimeClasspath
+}
+*/
+
+ 
+clean {
+        delete sourceSets.querydsl.java.srcDirs
+}
+
+eclipse {
+    classpath {
+        downloadSources = true
+        defaultOutputDir = file("${buildDir}/classes/main")
+    }   
+    wtp {
+        component {
+            contextPath = '/'
+        }
+        facet {
+            facet name: 'jst.web', version: '3.0'
+            facet name: 'java', version: '1.7'
+            facet name: 'wst.jsdt.web', version: '1.0'
+        }
+    }
+    project {
+        natures 'org.springframework.ide.eclipse.core.springnature'
+    	buildCommand 'org.springframework.ide.eclipse.core.springbuilder'
+    }
+}
+
+tomcatRun {
+    httpPort = 8090
+    stopPort = 8091
+    URIEncoding = 'utf-8'
+    contextPath = ''
+    //httpsPort = 8093
+    //enableSSL = true
+    //configFile = file('context.xml') // 기본값 src/main/webapp/META-INF/context.xml
+}
