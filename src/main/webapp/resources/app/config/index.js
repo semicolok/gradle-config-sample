@@ -7,6 +7,6 @@ app.config(function($routeProvider){
      })
      .when('/main', {
 	 controller : 'MainCtrl',
-	 templateUrl : '/resources/app/template/main.html'
+	 templateUrl : '/d/resources/app/template/main.html'
      });
 });

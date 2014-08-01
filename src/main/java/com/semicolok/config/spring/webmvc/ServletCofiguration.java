@@ -31,7 +31,7 @@ import com.semicolok.config.spring.PropertiesConfiguration;
 
 // servlet-context.xml
 @Configuration
-@Import(value = {PropertiesConfiguration.class, Resolvers.class})
+@Import(value = {PropertiesConfiguration.class, Resolvers.class, WebsocketConfig.class, StompConfig.class})
 //@Import(value = {Resolvers.class})
 @EnableWebMvc
 @ComponentScan(basePackages = {"com.semicolok.web.controller"})

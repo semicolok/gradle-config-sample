@@ -2,4 +2,26 @@
   <tr data-ng-repeat="board in boardList">
     <td>{{board}}</td>
   </tr>
+  <input type="text" ng-model="message"/>
+  <button ng-click="send()">SEND</button>
+
+  <ul ng-repeat="echo in echoMessages">
+    <li>{{echo}}</li>
+  </ul>
+  
+  
+  <input type="text" ng-model="messageJs"/>
+  <button ng-click="sendJs()">SEND</button>
+
+  <ul ng-repeat="echo in echoJsMessages">
+    <li>{{echo}}</li>
+  </ul>
+  
+  
+    <input type="text" ng-model="messageSt"/>
+  <button ng-click="sendStt()">SENDST</button>
+
+  <ul ng-repeat="echo in echoStMessages">
+    <li>{{echo}}</li>
+  </ul>
 </table>
